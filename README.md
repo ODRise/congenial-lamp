@@ -1,41 +1,46 @@
 Youtube 1.25 default speed
 ```// ==UserScript==
-// @name         YouTube Auto Playback Speed 1.25
+// @name         YouTube Default 1.25x Speed (Except Live Streams)
 // @namespace    http://tampermonkey.net/
 // @version      1.0
-// @description  Automatically sets YouTube playback speed to 1.25x
-// @author       Your Name
+// @description  Sets YouTube videos to 1.25x speed by default, but doesn't affect live streams
+// @author       You
 // @match        https://www.youtube.com/*
-// @match        https://youtube.com/*
 // @grant        none
 // ==/UserScript==
 
 (function() {
     'use strict';
-
-    function setPlaybackSpeed(video) {
-        if (video.playbackRate !== 1.25) {
+    
+    // Function to check if the current video is a live stream
+    function isLiveStream() {
+        const liveBadge = document.querySelector('.ytp-live-badge');
+        return liveBadge !== null;
+    }
+    
+    // Function to set playback speed if not a live stream
+    function setPlaybackSpeed() {
+        const video = document.querySelector('video');
+        if (video && !isLiveStream()) {
             video.playbackRate = 1.25;
         }
     }
-
-    function checkAndSetSpeed() {
-        const video = document.querySelector('video');
-        if (video) {
-            setPlaybackSpeed(video);
-
-            // If playback speed changes (by YouTube), reapply the speed
-            video.addEventListener('ratechange', () => {
-                setPlaybackSpeed(video);
-            });
+    
+    // Handle navigation within YouTube (SPA behavior)
+    let lastUrl = location.href;
+    new MutationObserver(() => {
+        if (location.href !== lastUrl) {
+            lastUrl = location.href;
+            // Wait for video player to load after navigation
+            setTimeout(setPlaybackSpeed, 2000);
         }
-    }
-
-    // Observe page changes (for YouTube navigation without full page reload)
-    const observer = new MutationObserver(checkAndSetSpeed);
-    observer.observe(document.body, { childList: true, subtree: true });
-
-    // Initial check
-    checkAndSetSpeed();
-
+    }).observe(document, {subtree: true, childList: true});
+    
+    // Handle initial page load and video player ready events
+    document.addEventListener('yt-navigate-finish', function() {
+        setTimeout(setPlaybackSpeed, 2000);
+    });
+    
+    // Periodically check to ensure setting is applied (helps with ads, etc.)
+    setInterval(setPlaybackSpeed, 5000);
 })();
