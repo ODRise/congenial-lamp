@@ -1,46 +1,62 @@
 Youtube 1.25 default speed
 ```// ==UserScript==
-// @name         YouTube Default 1.25x Speed (Except Live Streams)
-// @namespace    http://tampermonkey.net/
-// @version      1.0
-// @description  Sets YouTube videos to 1.25x speed by default, but doesn't affect live streams
-// @author       You
+// @name         YouTube Default Playback Speed
+// @namespace    https://youtube.com/
+// @version      1.1
+// @description  Automatically sets YouTube playback speed to 2.5x, excluding live streams.
+// @author       Pepega
 // @match        https://www.youtube.com/*
 // @grant        none
 // ==/UserScript==
 
-(function() {
+(function () {
     'use strict';
-    
-    // Function to check if the current video is a live stream
+
+    const DEFAULT_SPEED = 1.25;
+
     function isLiveStream() {
+        // Check for the "LIVE" badge; YouTube uses a specific indicator for live streams
         const liveBadge = document.querySelector('.ytp-live-badge');
-        return liveBadge !== null;
+        return liveBadge && liveBadge.offsetParent !== null;
     }
-    
-    // Function to set playback speed if not a live stream
-    function setPlaybackSpeed() {
-        const video = document.querySelector('video');
-        if (video && !isLiveStream()) {
-            video.playbackRate = 1.25;
+
+    function setPlaybackSpeed(video) {
+        if (video && !isLiveStream() && video.playbackRate !== DEFAULT_SPEED) {
+            video.playbackRate = DEFAULT_SPEED;
+            console.log(`Playback speed set to ${DEFAULT_SPEED}x`);
         }
     }
-    
-    // Handle navigation within YouTube (SPA behavior)
-    let lastUrl = location.href;
-    new MutationObserver(() => {
-        if (location.href !== lastUrl) {
-            lastUrl = location.href;
-            // Wait for video player to load after navigation
-            setTimeout(setPlaybackSpeed, 2000);
+
+    function handleNewVideo() {
+        const video = document.querySelector('video.html5-main-video');
+        if (video) {
+            setPlaybackSpeed(video);
         }
-    }).observe(document, {subtree: true, childList: true});
-    
-    // Handle initial page load and video player ready events
-    document.addEventListener('yt-navigate-finish', function() {
-        setTimeout(setPlaybackSpeed, 2000);
+    }
+
+    function initObservers() {
+        // Observe DOM changes for dynamically loaded pages (YouTube's SPA behavior)
+        const observer = new MutationObserver(() => {
+            handleNewVideo();
+        });
+
+        observer.observe(document.body, { childList: true, subtree: true });
+
+        // Handle YouTube's navigation events (yt-navigate-finish)
+        window.addEventListener('yt-navigate-finish', () => {
+            setTimeout(() => {
+                handleNewVideo();
+            }, 500); // Delay to ensure the video element is loaded
+        });
+    }
+
+    // Initial setup for the video on page load
+    window.addEventListener('load', () => {
+        setTimeout(() => {
+            handleNewVideo();
+        }, 1000);
     });
-    
-    // Periodically check to ensure setting is applied (helps with ads, etc.)
-    setInterval(setPlaybackSpeed, 5000);
+
+    // Initialize observers
+    initObservers();
 })();
